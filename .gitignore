@@ -1,0 +1,38 @@
+# Compiled output
+*.prg
+*.prg.debug.xml
+
+# Build artifacts
+bin/
+gen/
+external-mir/
+internal-mir/
+
+# Workstation-local Garmin SDK/developer key paths
+build-config.local.bat
+
+# Developer key (never commit this)
+developer_key
+*.der
+*.pem
+*.key
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Generated data/debug output
+cache/
+generated/*.json
+generated/*.html
+generated/*.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Connect IQ simulator state
+*.iq
