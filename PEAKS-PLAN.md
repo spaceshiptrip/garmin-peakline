@@ -5,7 +5,7 @@ This document is the implementation bootstrap for a Garmin Connect IQ device app
 The intended repo is:
 
 ```text
-C:\Users\jtorres\Workspaces\pnb\garmin-peak-detector
+C:\Users\jtorres\Workspaces\pnb\garmin-peakline
 ```
 
 The existing Garmin watchface repo that contains useful scripts and proven setup is:
@@ -1212,7 +1212,7 @@ That difference is intentional. The watch app should do less, but do it quickly 
 Recommended workflow after this file is cleaned up:
 
 ```powershell
-cd C:\Users\jtorres\Workspaces\pnb\garmin-peak-detector
+cd C:\Users\jtorres\Workspaces\pnb\garmin-peakline
 ```
 
 Then start a new Codex session in that directory and say:
@@ -2364,5 +2364,6 @@ generate peaks â†’ write PeakData.mc â†’ build PRG â†’ copy PRG t
 That avoids the biggest Garmin headaches: large runtime JSON parsing, arbitrary side-loaded files, and object-store limits.
 
 So yes: donâ€™t start with JSON on the watch. Start with JSON on the laptop, generated Monkey C on the watch, and only move to binary if the compiled app gets too big or slow.
+
 
 
