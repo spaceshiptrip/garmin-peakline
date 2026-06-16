@@ -956,6 +956,257 @@ Keep MVP focused:
 offline regional peak compass line
 ```
 
+
+## PeakFinder Reference And Scope Boundaries
+
+This project is inspired by PeakFinder:
+
+```text
+https://www.peakfinder.com/mobile/
+```
+
+PeakFinder is the benchmark user experience, but the Garmin app should not try to clone all of PeakFinder in the first version.
+
+PeakFinder capabilities worth understanding:
+
+- worldwide offline mountain database with more than 1,000,000 peaks;
+- integrated elevation model for rendering 360 degree panoramic mountain silhouettes;
+- current-location panorama generation;
+- camera overlay mode;
+- compass calibration and manual alignment correction;
+- photo snapshots and later photo editing/export;
+- touch a mountain label for more information;
+- telescope/zoom mode to identify less prominent peaks;
+- vertical fly-up/fly-down to reveal what is hidden behind ridges;
+- sliders for compass correction, visibility range, and sun/moon date/time;
+- marks/favorites synced through an account or stored locally;
+- arbitrary viewpoint selection;
+- visible-peaks list;
+- downloadable offline regions.
+
+For this Garmin project, treat PeakFinder as inspiration for interaction concepts and long-term direction, not as the MVP feature set.
+
+### Garmin MVP Scope Compared With PeakFinder
+
+Version 1 should implement only the subset that is realistic and useful on an Epix Pro watch:
+
+```text
+current location or fallback demo location
+heading/manual heading
+regional offline peak database
+360 degree / heading-relative peak label strip
+range filter
+simple peak list
+manual compass correction
+```
+
+Version 1 should not include:
+
+```text
+camera overlay
+photo capture/edit/export
+worldwide peak database
+mountain silhouette rendering
+full integrated DEM visibility engine
+account sync
+sun/moon orbit sliders
+arbitrary worldwide viewpoint selection
+```
+
+The watch app should be optimized for quick wrist use while hiking or running:
+
+```text
+open app -> get location/heading -> see nearby peak labels
+```
+
+### Future Features Borrowed From PeakFinder
+
+The following PeakFinder features are good later-version candidates.
+
+#### Manual Alignment Correction
+
+This should be an early feature, probably Version 1 or Version 1.1.
+
+PeakFinder supports manual panorama alignment because phone compasses can be wrong. The Garmin app should assume the same issue exists.
+
+Garmin design:
+
+```text
+START: lock/unlock heading
+UP/DOWN while locked: adjust correction by 1 degree or 5 degrees
+BACK: clear or exit correction mode
+```
+
+Store correction in `Application.Storage`.
+
+#### Visible Peaks List
+
+This is a strong Version 1.1 feature.
+
+The app can provide a list of peaks in the selected heading window and range:
+
+```text
+Visible / In Direction
+1. Mt Wilson        12.4 mi  083 deg
+2. Strawberry Peak  18.2 mi  061 deg
+3. Mt Lukens         5.8 mi  342 deg
+```
+
+For MVP, this means “peaks in the direction/range,” not mathematically terrain-visible peaks.
+
+Later, if precomputed visibility data exists, the same screen can become a true visible-peaks list.
+
+#### Touch Or Select Peak For Details
+
+PeakFinder lets the user touch a mountain name for details.
+
+Garmin equivalent:
+
+```text
+START cycles/selects peak
+START on selected peak opens detail screen
+BACK returns to strip
+```
+
+Detail screen:
+
+```text
+Mt Wilson
+Distance: 12.4 mi
+Bearing: 083 deg
+Elevation: 5713 ft
+Relative: 31 deg right
+```
+
+#### Telescope / Zoom Mode
+
+PeakFinder has telescope mode for less prominent mountains.
+
+Garmin equivalent:
+
+```text
+normal mode: +/- 45 deg
+wide mode:   +/- 90 deg
+zoom mode:   +/- 15 deg with more labels
+```
+
+This is a good second-phase UI improvement after basic label placement works.
+
+#### Range Slider Equivalent
+
+PeakFinder has sliders for visibility range and alignment.
+
+Garmin equivalent should use buttons rather than sliders:
+
+```text
+UP/DOWN cycles range: 5 / 15 / 30 / 60 / 100 mi
+MENU opens settings for correction/range/label density
+```
+
+#### Marks / Favorites
+
+PeakFinder supports marks/favorites.
+
+Garmin equivalent later:
+
+```text
+favorite peak IDs stored in Application.Storage
+favorite peaks get label priority
+manual marked locations such as Home can be displayed like peaks
+```
+
+This should wait until the core app works.
+
+#### Viewpoint Selection
+
+PeakFinder can show panoramas from arbitrary viewpoints.
+
+Garmin equivalent later:
+
+```text
+current GPS location mode
+saved demo/viewpoint mode
+manual lat/lon datasets generated on laptop
+```
+
+The laptop generator can create datasets centered on arbitrary locations. The watch does not need worldwide arbitrary-viewpoint support in v1.
+
+#### Offline Regions
+
+PeakFinder can install/remove offline regions.
+
+Garmin equivalent later could be separate generated builds or datasets:
+
+```text
+SoCal / San Gabriels dataset
+Sierra dataset
+Utah dataset
+Colorado dataset
+```
+
+MVP should use one compiled regional dataset.
+
+### Photos And Camera Overlay
+
+Photos/camera overlay are not a Garmin watch MVP feature.
+
+Reasons:
+
+- The target Epix Pro watch does not have a camera.
+- Connect IQ watch UI is too small for photo editing/export workflows.
+- The useful watch interaction is glanceable peak direction, not AR overlay.
+
+However, the idea can inform future companion tooling:
+
+```text
+phone/web tool takes photo
+laptop/server uses same peak database and DEM to label photo
+watch app remains the field quick-reference tool
+```
+
+So: keep photo/camera ideas as future ecosystem inspiration, but do not design v1 around pictures.
+
+### Long-Term True PeakFinder-Like Visibility
+
+The hardest PeakFinder feature is not labels. It is knowing which peaks are actually visible behind terrain.
+
+For this Garmin app, the preferred path is still:
+
+```text
+laptop computes hard terrain/visibility data
+watch displays compact results
+```
+
+Good future implementation:
+
+```text
+DEM + peak database + sampled trail/viewpoint grid -> visible peak ID sets
+```
+
+The watch then does:
+
+```text
+find nearest viewpoint -> filter to precomputed visible peak IDs -> draw labels
+```
+
+This is much more realistic than running full DEM ray-casting on the watch.
+
+### Product Positioning
+
+PeakFinder is:
+
+```text
+full offline worldwide panoramic mountain identification app
+```
+
+PeakLine should be:
+
+```text
+fast offline Garmin wrist compass for named peaks around the user
+```
+
+That difference is intentional. The watch app should do less, but do it quickly and clearly on the wrist.
+
 ## New Codex Session Bootstrap
 
 Recommended workflow after this file is cleaned up:
@@ -2113,4 +2364,5 @@ generate peaks â†’ write PeakData.mc â†’ build PRG â†’ copy PRG t
 That avoids the biggest Garmin headaches: large runtime JSON parsing, arbitrary side-loaded files, and object-store limits.
 
 So yes: donâ€™t start with JSON on the watch. Start with JSON on the laptop, generated Monkey C on the watch, and only move to binary if the compiled app gets too big or slow.
+
 
