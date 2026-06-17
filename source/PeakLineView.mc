@@ -1,6 +1,8 @@
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.Math;
+import Toybox.Position;
+import Toybox.Sensor;
 import Toybox.WatchUi;
 
 class PeakLineView extends WatchUi.View {
@@ -14,6 +16,10 @@ class PeakLineView extends WatchUi.View {
     const METERS_PER_MILE = 1609.344;
 
     var _heading = 52.0;
+    var _userLat = PeakMath.e7ToDeg(PeakData.CENTER_LAT_E7);
+    var _userLon = PeakMath.e7ToDeg(PeakData.CENTER_LON_E7);
+    var _hasLocation = false;
+    var _hasHeading = false;
     var _rangeIndex = 2;
     var _headingLocked = false;
     var _ranges = [5, 15, 30, 60, 100];
@@ -26,9 +32,39 @@ class PeakLineView extends WatchUi.View {
     }
 
     function onShow() as Void {
+        startSensors();
     }
 
     function onHide() as Void {
+        stopSensors();
+    }
+
+    function startSensors() as Void {
+        Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
+        Sensor.enableSensorEvents(method(:onSensor));
+    }
+
+    function stopSensors() as Void {
+        Position.enableLocationEvents(Position.LOCATION_DISABLE, null);
+        Sensor.enableSensorEvents(null);
+    }
+
+    function onPosition(info as Position.Info) as Void {
+        if (info != null && info has :position && info.position != null) {
+            var location = info.position.toDegrees();
+            _userLat = location[0];
+            _userLon = location[1];
+            _hasLocation = true;
+            WatchUi.requestUpdate();
+        }
+    }
+
+    function onSensor(info as Sensor.Info) as Void {
+        if (!_headingLocked && info != null && info has :heading && info.heading != null) {
+            _heading = PeakMath.normalize360(info.heading);
+            _hasHeading = true;
+            WatchUi.requestUpdate();
+        }
     }
 
     function increaseRange() as Void {
@@ -77,11 +113,21 @@ class PeakLineView extends WatchUi.View {
                      headingLabel(_heading) + " " + _heading.toNumber().format("%03d") + " deg",
                      PEAK_COLOR);
         drawCentered(dc, w / 2, h - 48, Graphics.FONT_XTINY,
-                     "Range " + rangeMi + " mi | Demo location",
+                     "Range " + rangeMi + " mi | " + (_hasLocation ? "GPS location" : "Demo location"),
                      MUTED_COLOR);
         drawCentered(dc, w / 2, h - 28, Graphics.FONT_XTINY,
-                     _headingLocked ? "SELECT unlock | UP/DOWN heading" : "SELECT lock | UP/DOWN heading",
+                     headingStatus(),
                      MUTED_COLOR);
+    }
+
+    function headingStatus() {
+        if (_headingLocked) {
+            return "SELECT unlock | Manual heading";
+        }
+        if (_hasHeading) {
+            return "Compass heading | SELECT lock";
+        }
+        return "Waiting for compass | UP/DOWN heading";
     }
 
     function drawCompassMarks(dc, w, horizonY, leftX, rightX) as Void {
@@ -129,20 +175,18 @@ class PeakLineView extends WatchUi.View {
         dc.drawLine(leftX, horizonY, rightX, horizonY);
         drawCompassMarks(dc, w, horizonY, leftX, rightX);
 
-        var userLat = PeakMath.e7ToDeg(PeakData.CENTER_LAT_E7);
-        var userLon = PeakMath.e7ToDeg(PeakData.CENTER_LON_E7);
         var labelsDrawn = 0;
 
         for (var i = 0; i < PeakData.PEAKS.size(); i++) {
             var peak = PeakData.PEAKS[i];
             var peakLat = PeakMath.e7ToDeg(peak[0]);
             var peakLon = PeakMath.e7ToDeg(peak[1]);
-            var distanceM = PeakMath.distanceMeters(userLat, userLon, peakLat, peakLon);
+            var distanceM = PeakMath.distanceMeters(_userLat, _userLon, peakLat, peakLon);
             if (distanceM > rangeM) {
                 continue;
             }
 
-            var bearing = PeakMath.bearingDegrees(userLat, userLon, peakLat, peakLon);
+            var bearing = PeakMath.bearingDegrees(_userLat, _userLon, peakLat, peakLon);
             var relative = PeakMath.relativeBearing(bearing, _heading, 0.0);
             if (absFloat(relative) > halfWindow) {
                 continue;
