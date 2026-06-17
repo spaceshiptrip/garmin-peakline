@@ -522,6 +522,39 @@ drawing:                  onUpdate
 
 For the MVP, scanning 500-1000 peaks per update may be acceptable on Epix Pro, but keep the code structured so it can cache computed distances and only recompute bearing when location changes.
 
+### Real Device GPS And Heading State
+
+The watch must not treat startup defaults as real device state.
+
+The current implementation starts with the generated dataset center as a demo location and a fixed heading so the app can run in the simulator. On the real Epix Pro, those defaults must be treated only as fallback values. The UI should clearly show whether the app is using real watch data or fallback data.
+
+Track GPS and heading separately:
+
+```text
+GPS state:
+  DEMO      using generated dataset center because no watch position is available
+  WAIT      location events are enabled, but no usable fix has arrived
+  POOR      a position exists, but quality/accuracy is too weak for confident labels
+  USABLE    a live position is good enough to compute peak bearings
+  GOOD      a live position is strong enough for normal outdoor use
+
+Heading state:
+  WAIT      heading events are enabled, but no heading has arrived
+  LIVE      heading is arriving and is being used to rotate the peak window
+  STALE     a heading arrived before, but it has not updated recently
+  LOCK      user locked heading with SELECT
+  MANUAL    user is controlling heading with UP/DOWN fallback controls
+```
+
+Important behavior:
+
+- Do not show `GPS location` just because one coordinate was received; prefer a quality/accuracy-aware label.
+- Do not continue saying `Demo location` after a usable live GPS position is accepted.
+- If heading updates only when the watch is tilted, surface that as a heading availability/calibration problem instead of hiding it.
+- Peaks should move left/right when `_heading` changes because relative bearing is computed during drawing.
+- Peaks should be recomputed from live `_userLat` and `_userLon` once GPS is usable; the generated dataset center should only remain as the pre-GPS fallback.
+- Manual heading mode remains useful for simulator testing, indoor testing, and devices/situations where compass heading is unavailable.
+
 ## Garmin APIs To Use
 
 Use these Connect IQ modules, verifying exact method names against the installed SDK docs during implementation:
@@ -830,6 +863,109 @@ Acceptance:
 Rotating watch/body changes labels
 Manual correction is available
 ```
+
+### Next Implementation Pass: Live GPS / Compass Reliability
+
+This is the immediate next task before more visualization work.
+
+Problem observed on the Epix Pro:
+
+```text
+The app does not behave like a live compass when the watch is rotated.
+The heading value appears to update only in some tilt/orientation cases.
+Peak labels are not visibly moving in real time with the watch heading.
+The app still says Demo location, which means a usable GPS fix has not been accepted.
+There is no clear on-screen indicator showing whether GPS and heading are live.
+```
+
+Do this pass without changing label spacing, fonts, collision behavior, or other visual design experiments. The goal is sensor truth and debug visibility first.
+
+Implementation requirements:
+
+```text
+1. Keep Positioning and Sensor permissions in manifest.xml.
+2. On view show, enable continuous location events.
+3. On view show, enable sensor heading events.
+4. On view hide, disable location and sensor events.
+5. Track location callback count.
+6. Track heading callback count.
+7. Track last accepted GPS coordinates.
+8. Track last accepted GPS quality/accuracy if exposed by the SDK.
+9. Track last accepted heading.
+10. Track whether heading is live, stale, locked, or manual.
+11. Request a redraw whenever location or heading state changes.
+12. Keep demo lat/lon only until live GPS is usable.
+13. Keep manual UP/DOWN heading controls as fallback and debug controls.
+```
+
+GPS handling details:
+
+```text
+Use Toybox.Position.enableLocationEvents().
+Accept info.position.toDegrees() only when info.position exists.
+If info exposes accuracy/currentLocationAccuracy, store and display it.
+If info exposes quality constants, map them to GOOD/USABLE/POOR/WAIT.
+If quality is unavailable but a position exists, treat it as USABLE and show accuracy if present.
+If only last-known or poor quality is available, show that clearly instead of claiming GOOD.
+```
+
+Heading handling details:
+
+```text
+Use Toybox.Sensor.enableSensorEvents().
+Use Sensor.Info.heading only when the field exists and is non-null.
+Store the heading through PeakMath.normalize360().
+If heading does not update for several draw cycles or callback cycles, mark it STALE.
+If SELECT locks heading, keep drawing with the locked heading and show HDG: LOCK.
+If UP/DOWN changes heading while no live heading is available, show HDG: MANUAL.
+```
+
+Status display requirement:
+
+The main screen needs compact live-state text that fits in the existing bottom status area.
+
+Examples:
+
+```text
+GPS: GOOD | HDG: LIVE
+GPS: USABLE | HDG: LIVE
+GPS: WAIT | HDG: WAIT
+GPS: DEMO | HDG: MANUAL
+GPS: POOR | HDG: STALE
+GPS: GOOD | HDG: LOCK
+```
+
+Optional debug text while this is being tested:
+
+```text
+loc 12 | hdg 48
+acc 9m | hdg 052
+```
+
+Remove or hide verbose debug counters later if they clutter the UI, but they are useful for the first real-device test because they prove whether callbacks are firing.
+
+Acceptance:
+
+```text
+Simulator:
+  app does not crash with no real sensors
+  app clearly shows GPS/heading are demo/wait/manual
+  UP/DOWN still rotates the heading and moves peaks
+
+Indoor watch test:
+  app does not crash
+  GPS does not falsely claim GOOD
+  heading state shows WAIT, STALE, LIVE, LOCK, or MANUAL truthfully
+
+Outdoor watch test:
+  GPS transitions from WAIT/DEMO to USABLE or GOOD after a fix
+  Demo location text disappears after live GPS is accepted
+  rotating the watch updates heading when Garmin provides heading
+  peak ticks/labels move left/right as heading changes
+  if heading only updates when tilted, the UI makes that visible via heading state/debug counts
+```
+
+If this pass still does not produce stable compass behavior, the next investigation should be Garmin-specific heading availability on the Epix Pro. Do not continue polishing visualization until the app can prove whether GPS and heading callbacks are firing and whether the heading value is changing.
 
 ### Stage 5: Python Generator
 
